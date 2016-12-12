@@ -90,13 +90,22 @@ function commit(repo, version) {
     );
 }
 
-function push(repo) {
+function createTag(repo, version, oid) {
+    console.log('tag');
+
+    const name = version.replace(/Ver\.?/, 'v');
+
+    return repo.createLightweightTag(oid, name)
+        .then(() => name);
+}
+
+function push(repo, tag) {
     console.log('push');
 
     return Promise.resolve(git.Remote.create(repo, 'origin-push', config.get('git.pushURL')))
         .then(remote =>
             remote.push(
-                ['refs/heads/master:refs/heads/master'],
+                ['refs/heads/master:refs/heads/master', `refs/tags/${tag}:refs/tags/${tag}`],
                 {
                     callbacks: {
                         credentials: (url, userName) => git.Cred.sshKeyNew(
@@ -159,7 +168,7 @@ function handler() {
                         version: tweet.version[0],
                         url: `http://www.dodontof.com/DodontoF/DodontoF_${tweet.version[0]}.zip`
                     }));
-                
+
                 console.dir(releases);
                 const release = releases[0];
 
@@ -167,7 +176,8 @@ function handler() {
                     .then(repo =>
                         update(repo, release.version)
                             .then(() => commit(repo, release.version))
-                            .then(() => push(repo))
+                            .then(oid => createTag(repo, release.version, oid))
+                            .then(tag => push(repo, tag))
                     )
                     .catch(e => {
                         console.error(e.stack);
